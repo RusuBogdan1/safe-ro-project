@@ -116,17 +116,19 @@ export function Public() {
 
     setIsSubscribing(true);
     try {
-      const { error } = await supabase
-        .from("alert_subscriptions")
-        .insert({
+      // Use edge function for secure subscription handling
+      const { data, error } = await supabase.functions.invoke('manage-subscription', {
+        body: {
+          action: 'subscribe',
           email: emailResult.data,
           region_id: selectedRegion,
           hazard_types: ["flood", "vegetation", "fire"],
-        });
+        },
+      });
 
       if (error) throw error;
       
-      toast.success("Successfully subscribed to alerts!");
+      toast.success(data?.message || "Successfully subscribed to alerts!");
       setSubscribeEmail("");
       setSelectedRegion(null);
     } catch {
