@@ -2,8 +2,9 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { ControlPanel } from "@/components/dashboard/ControlPanel";
 import { VolunteerAnnouncementsPanel } from "@/components/dashboard/VolunteerAnnouncementsPanel";
-import { api, MOCK_REGIONS } from "@/lib/api";
-import type { Region, HazardType, AcquisitionMode, HazardSummary } from "@/types";
+import { MOCK_REGIONS } from "@/lib/api";
+import { analyzeRegion, type RegionAnalysis } from "@/lib/satellite-api";
+import type { Region, HazardType, AcquisitionMode } from "@/types";
 import { toast } from "sonner";
 import { MapPin } from "lucide-react";
 
@@ -25,36 +26,41 @@ export function Dashboard() {
   const [regions] = useState<Region[]>(MOCK_REGIONS);
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [hazardType, setHazardType] = useState<HazardType>("flood");
-  const [summary, setSummary] = useState<HazardSummary | null>(null);
+  const [satelliteData, setSatelliteData] = useState<RegionAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!selectedRegion) {
-      setSummary(null);
+      setSatelliteData(null);
       return;
     }
-    const loadSummary = async () => {
+    
+    const loadSatelliteData = async () => {
       setIsLoading(true);
       try {
-        const data = await api.getHazardSummary(selectedRegion.id);
-        setSummary(data);
+        const data = await analyzeRegion(selectedRegion.id, 50, 14);
+        setSatelliteData(data);
+        toast.success(`Loaded satellite data for ${selectedRegion.displayName}`);
       } catch (error) {
-        toast.error("Failed to load region summary");
+        console.error("Failed to load satellite data:", error);
+        toast.error("Failed to load satellite data");
+        setSatelliteData(null);
       } finally {
         setIsLoading(false);
       }
     };
-    loadSummary();
-  }, [selectedRegion, hazardType]);
+    
+    loadSatelliteData();
+  }, [selectedRegion]);
 
   const handleRunAcquisition = async (mode: AcquisitionMode) => {
     if (!selectedRegion) return;
     setIsLoading(true);
     try {
-      await api.runAcquisition({ region_id: selectedRegion.id, mode });
-      toast.success(`Acquisition complete for ${selectedRegion.displayName}`);
-      const newSummary = await api.getHazardSummary(selectedRegion.id);
-      setSummary(newSummary);
+      // Run fresh analysis with satellite-data edge function
+      const data = await analyzeRegion(selectedRegion.id, 30, 30);
+      setSatelliteData(data);
+      toast.success(`Analysis complete for ${selectedRegion.displayName}`);
     } catch {
       toast.error("Failed to run acquisition");
     } finally {
@@ -66,9 +72,9 @@ export function Dashboard() {
     if (!selectedRegion) return;
     setIsLoading(true);
     try {
-      const data = await api.getHazardSummary(selectedRegion.id);
-      setSummary(data);
-      toast.success("Analysis refreshed");
+      const data = await analyzeRegion(selectedRegion.id, 50, 14);
+      setSatelliteData(data);
+      toast.success("Analysis refreshed with latest satellite data");
     } catch {
       toast.error("Failed to refresh");
     } finally {
@@ -87,7 +93,7 @@ export function Dashboard() {
             onRegionChange={setSelectedRegion}
             hazardType={hazardType}
             onHazardTypeChange={setHazardType}
-            summary={summary}
+            satelliteData={satelliteData}
             isLoading={isLoading}
             onRunAcquisition={handleRunAcquisition}
             onRefresh={handleRefresh}
