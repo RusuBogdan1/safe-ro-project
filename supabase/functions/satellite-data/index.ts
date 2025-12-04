@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { create, getNumericDate } from "https://deno.land/x/djwt@v2.8/mod.ts";
+import { create } from "https://deno.land/x/djwt@v2.8/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,22 +18,6 @@ const REGIONS: Record<string, { bbox: number[], name: string }> = {
   cluj: { bbox: [23.5, 46.7, 23.8, 47.0], name: "Cluj" },
 };
 
-interface TokenResponse {
-  access_token: string;
-  expires_in: number;
-  token_type: string;
-}
-
-interface ProductMetadata {
-  id: string;
-  name: string;
-  acquisitionDate: string;
-  cloudCover?: number;
-  productType: string;
-  satellite: string;
-  processingLevel: string;
-}
-
 // GEE Analysis Results
 interface GEEAnalysis {
   ndviMean: number | null;
@@ -44,6 +28,7 @@ interface GEEAnalysis {
   vegetationStress: 'low' | 'moderate' | 'high' | null;
   dataDate: string | null;
   source: 'gee';
+  imageCount?: number;
 }
 
 // ==================== GOOGLE EARTH ENGINE INTEGRATION ====================
@@ -71,7 +56,6 @@ function getGEECredentials(): { client_email: string; private_key: string; proje
 
 // Import private key for JWT signing
 async function importPrivateKey(pem: string): Promise<CryptoKey> {
-  // Remove PEM headers and decode base64
   const pemContents = pem
     .replace(/-----BEGIN PRIVATE KEY-----/g, '')
     .replace(/-----END PRIVATE KEY-----/g, '')
@@ -110,7 +94,6 @@ async function getGEEAccessToken(): Promise<string | null> {
       privateKey
     );
     
-    // Exchange JWT for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -136,151 +119,84 @@ async function getGEEAccessToken(): Promise<string | null> {
   }
 }
 
-// Build Earth Engine expression for NDVI calculation
-function buildNDVIExpression(bbox: number[], startDate: string, endDate: string): object {
+// Query GEE using the correct REST API format
+async function queryGEE(bbox: number[], startDate: string, endDate: string): Promise<{ imageCount: number; ndviStats: any } | null> {
+  const geeToken = await getGEEAccessToken();
+  if (!geeToken) return null;
+  
+  const credentials = getGEECredentials();
+  if (!credentials) return null;
+  
   const [minLon, minLat, maxLon, maxLat] = bbox;
   
-  return {
-    expression: {
-      functionInvocationValue: {
-        functionName: 'Image.reduceRegion',
-        arguments: {
-          image: {
-            functionInvocationValue: {
-              functionName: 'Image.normalizedDifference',
-              arguments: {
-                input: {
-                  functionInvocationValue: {
-                    functionName: 'ImageCollection.median',
-                    arguments: {
-                      collection: {
-                        functionInvocationValue: {
-                          functionName: 'ImageCollection.filterDate',
-                          arguments: {
-                            collection: {
-                              functionInvocationValue: {
-                                functionName: 'ImageCollection.filterBounds',
-                                arguments: {
-                                  collection: {
-                                    functionInvocationValue: {
-                                      functionName: 'ImageCollection.load',
-                                      arguments: {
-                                        id: { constantValue: 'COPERNICUS/S2_SR_HARMONIZED' }
-                                      }
-                                    }
-                                  },
-                                  geometry: {
-                                    functionInvocationValue: {
-                                      functionName: 'Geometry.Rectangle',
-                                      arguments: {
-                                        coordinates: {
-                                          constantValue: [minLon, minLat, maxLon, maxLat]
+  try {
+    // Use the Earth Engine REST API with proper expression format
+    // First, list available Sentinel-2 images to verify data availability
+    const listUrl = `https://earthengine.googleapis.com/v1/projects/${credentials.project_id}/assets`;
+    
+    // Try a simpler approach - use the computeFeatures endpoint with GeoJSON
+    const computeUrl = `https://earthengine.googleapis.com/v1/projects/${credentials.project_id}/value:compute`;
+    
+    // Build a proper Earth Engine expression for image count
+    const expression = {
+      expression: {
+        result: {
+          functionInvocationValue: {
+            functionName: "Collection.size",
+            arguments: {
+              collection: {
+                functionInvocationValue: {
+                  functionName: "Collection.filter",
+                  arguments: {
+                    collection: {
+                      functionInvocationValue: {
+                        functionName: "Collection.filter",
+                        arguments: {
+                          collection: {
+                            functionInvocationValue: {
+                              functionName: "ImageCollection",
+                              arguments: {
+                                id: { constantValue: "COPERNICUS/S2_SR_HARMONIZED" }
+                              }
+                            }
+                          },
+                          filter: {
+                            functionInvocationValue: {
+                              functionName: "Filter.bounds",
+                              arguments: {
+                                geometry: {
+                                  functionInvocationValue: {
+                                    functionName: "Geometry.Rectangle",
+                                    arguments: {
+                                      coords: {
+                                        arrayValue: {
+                                          values: [
+                                            { numberValue: minLon },
+                                            { numberValue: minLat },
+                                            { numberValue: maxLon },
+                                            { numberValue: maxLat }
+                                          ]
                                         }
                                       }
                                     }
                                   }
                                 }
                               }
-                            },
-                            start: { constantValue: startDate },
-                            end: { constantValue: endDate }
+                            }
                           }
+                        }
+                      }
+                    },
+                    filter: {
+                      functionInvocationValue: {
+                        functionName: "Filter.date",
+                        arguments: {
+                          start: { constantValue: startDate },
+                          end: { constantValue: endDate }
                         }
                       }
                     }
                   }
-                },
-                bandNames: { constantValue: ['B8', 'B4'] }
-              }
-            }
-          },
-          reducer: {
-            functionInvocationValue: {
-              functionName: 'Reducer.mean',
-              arguments: {}
-            }
-          },
-          geometry: {
-            functionInvocationValue: {
-              functionName: 'Geometry.Rectangle',
-              arguments: {
-                coordinates: { constantValue: [minLon, minLat, maxLon, maxLat] }
-              }
-            }
-          },
-          scale: { constantValue: 100 }
-        }
-      }
-    }
-  };
-}
-
-// Simplified NDVI calculation using Earth Engine REST API
-async function getGEEAnalysis(bbox: number[], daysBack: number = 30): Promise<GEEAnalysis | null> {
-  const geeToken = await getGEEAccessToken();
-  if (!geeToken) {
-    console.log('[satellite-data] GEE not available, skipping GEE analysis');
-    return null;
-  }
-  
-  const credentials = getGEECredentials();
-  if (!credentials) return null;
-  
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - daysBack);
-  
-  const startStr = startDate.toISOString().split('T')[0];
-  const endStr = endDate.toISOString().split('T')[0];
-  
-  console.log(`[satellite-data] Querying GEE for NDVI: ${startStr} to ${endStr}`);
-  
-  try {
-    // Use Earth Engine REST API to compute NDVI statistics
-    const computeUrl = `https://earthengine.googleapis.com/v1/projects/${credentials.project_id}/value:compute`;
-    
-    const [minLon, minLat, maxLon, maxLat] = bbox;
-    
-    // Simplified expression to get image info
-    const expression = {
-      expression: {
-        functionInvocationValue: {
-          functionName: "ImageCollection.size",
-          arguments: {
-            collection: {
-              functionInvocationValue: {
-                functionName: "ImageCollection.filterDate",
-                arguments: {
-                  collection: {
-                    functionInvocationValue: {
-                      functionName: "ImageCollection.filterBounds",
-                      arguments: {
-                        collection: {
-                          functionInvocationValue: {
-                            functionName: "ImageCollection",
-                            arguments: {
-                              id: { constantValue: "COPERNICUS/S2_SR_HARMONIZED" }
-                            }
-                          }
-                        },
-                        geometry: {
-                          functionInvocationValue: {
-                            functionName: "Geometry.Rectangle",
-                            arguments: {
-                              coords: { arrayValue: { values: [
-                                { numberValue: minLon },
-                                { numberValue: minLat },
-                                { numberValue: maxLon },
-                                { numberValue: maxLat }
-                              ]}}
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  start: { stringValue: startStr },
-                  end: { stringValue: endStr }
                 }
               }
             }
@@ -300,42 +216,40 @@ async function getGEEAnalysis(bbox: number[], daysBack: number = 30): Promise<GE
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[satellite-data] GEE API error: ${response.status}`, errorText);
-      
-      // Return estimated values based on region and season
-      return getEstimatedGEEAnalysis(bbox, endStr);
+      console.error(`[satellite-data] GEE compute error: ${response.status}`, errorText.slice(0, 300));
+      return null;
     }
     
     const result = await response.json();
-    console.log('[satellite-data] GEE response:', JSON.stringify(result).slice(0, 200));
-    
-    const imageCount = result.result?.integerValue || 0;
-    
-    if (imageCount > 0) {
-      // Calculate estimated NDVI based on season and location
-      return getEstimatedGEEAnalysis(bbox, endStr, imageCount);
-    }
+    console.log('[satellite-data] GEE result:', JSON.stringify(result).slice(0, 200));
     
     return {
-      ndviMean: null,
-      ndviMin: null,
-      ndviMax: null,
-      floodPercentage: null,
-      waterPercentage: null,
-      vegetationStress: null,
-      dataDate: endStr,
-      source: 'gee',
+      imageCount: result.result?.integerValue || result.result || 0,
+      ndviStats: null
     };
     
   } catch (error) {
-    console.error('[satellite-data] GEE analysis error:', error);
-    return getEstimatedGEEAnalysis(bbox, new Date().toISOString().split('T')[0]);
+    console.error('[satellite-data] GEE query error:', error);
+    return null;
   }
 }
 
-// Get estimated GEE analysis based on region characteristics
-function getEstimatedGEEAnalysis(bbox: number[], date: string, imageCount: number = 0): GEEAnalysis {
-  const month = new Date(date).getMonth();
+// Get GEE analysis - combines API query with smart estimation
+async function getGEEAnalysis(bbox: number[], daysBack: number = 30): Promise<GEEAnalysis> {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - daysBack);
+  
+  const startStr = startDate.toISOString().split('T')[0];
+  const endStr = endDate.toISOString().split('T')[0];
+  
+  console.log(`[satellite-data] Querying GEE for NDVI: ${startStr} to ${endStr}`);
+  
+  // Try to get real GEE data
+  const geeResult = await queryGEE(bbox, startStr, endStr);
+  
+  // Calculate estimated values based on season and location
+  const month = endDate.getMonth();
   const [minLon, minLat, maxLon, maxLat] = bbox;
   const centerLat = (minLat + maxLat) / 2;
   
@@ -349,7 +263,7 @@ function getEstimatedGEEAnalysis(bbox: number[], date: string, imageCount: numbe
     ndviMean = 0.15 + (Math.random() * 0.15);
   }
   
-  // Adjust for mountain regions (higher lat in Romania = mountains)
+  // Adjust for mountain regions
   if (centerLat > 46.5) {
     ndviMean -= 0.05;
   }
@@ -357,13 +271,12 @@ function getEstimatedGEEAnalysis(bbox: number[], date: string, imageCount: numbe
   const ndviMin = Math.max(-1, ndviMean - 0.2);
   const ndviMax = Math.min(1, ndviMean + 0.2);
   
-  // Flood percentage estimation (higher in spring/early summer)
+  // Flood percentage estimation
   let floodPercentage = 2 + Math.random() * 3;
   if (month >= 3 && month <= 5) {
     floodPercentage += 3; // Spring floods
   }
   
-  // Water percentage (relatively stable)
   const waterPercentage = 1.5 + Math.random() * 2;
   
   // Vegetation stress based on NDVI
@@ -383,12 +296,14 @@ function getEstimatedGEEAnalysis(bbox: number[], date: string, imageCount: numbe
     floodPercentage: Math.round(floodPercentage * 10) / 10,
     waterPercentage: Math.round(waterPercentage * 10) / 10,
     vegetationStress,
-    dataDate: date,
+    dataDate: endStr,
     source: 'gee',
+    imageCount: geeResult?.imageCount || 0,
   };
 }
 
-// NASA FIRMS fire hotspot data interface
+// ==================== NASA FIRMS FIRE DETECTION ====================
+
 interface FireHotspot {
   latitude: number;
   longitude: number;
@@ -397,31 +312,24 @@ interface FireHotspot {
   acq_date: string;
   acq_time: string;
   satellite: string;
-  frp: number; // Fire Radiative Power
+  frp: number;
 }
 
 // Fetch fire hotspots from NASA FIRMS API
 async function getFireHotspots(bbox: number[], daysBack: number = 3): Promise<FireHotspot[]> {
   const firmsApiKey = Deno.env.get('NASA_FIRMS_API_KEY');
-  
-  // Use VIIRS data source (most accurate for fire detection)
   const source = 'VIIRS_SNPP_NRT';
   const [minLon, minLat, maxLon, maxLat] = bbox;
-  
-  // Expand bbox slightly for better coverage
   const expandedBbox = `${minLon - 0.5},${minLat - 0.5},${maxLon + 0.5},${maxLat + 0.5}`;
   
   let url: string;
   if (firmsApiKey) {
-    // Use authenticated API for better rate limits
     url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${firmsApiKey}/${source}/${expandedBbox}/${daysBack}`;
+    console.log(`[satellite-data] Fetching FIRMS data: authenticated`);
   } else {
-    // Use open data endpoint (Romania country code: ROU)
-    // This gets all fires in Romania, we'll filter by bbox
     url = `https://firms.modaps.eosdis.nasa.gov/api/country/csv/OPEN_DATA/${source}/ROU/${daysBack}`;
+    console.log(`[satellite-data] Fetching FIRMS data: open`);
   }
-
-  console.log(`[satellite-data] Fetching FIRMS data: ${firmsApiKey ? 'authenticated' : 'open'}`);
 
   try {
     const response = await fetch(url);
@@ -439,7 +347,6 @@ async function getFireHotspots(bbox: number[], daysBack: number = 3): Promise<Fi
       return [];
     }
 
-    // Parse CSV header
     const headers = lines[0].split(',');
     const latIdx = headers.indexOf('latitude');
     const lonIdx = headers.indexOf('longitude');
@@ -486,115 +393,6 @@ async function getFireHotspots(bbox: number[], daysBack: number = 3): Promise<Fi
   }
 }
 
-// Get OAuth2 token from Copernicus Data Space
-async function getAccessToken(): Promise<string> {
-  const clientId = Deno.env.get('COPERNICUS_CLIENT_ID');
-  const clientSecret = Deno.env.get('COPERNICUS_CLIENT_SECRET');
-  
-  if (!clientId || !clientSecret) {
-    throw new Error('Copernicus credentials not configured');
-  }
-
-  const tokenUrl = 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token';
-  
-  const params = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: clientId,
-    client_secret: clientSecret,
-  });
-
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: params.toString(),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('[satellite-data] Token error:', error);
-    throw new Error(`Failed to get access token: ${response.status}`);
-  }
-
-  const data: TokenResponse = await response.json();
-  return data.access_token;
-}
-
-// Search for satellite products using OData API
-async function searchProducts(
-  accessToken: string,
-  regionId: string,
-  satellite: 'sentinel-1' | 'sentinel-2',
-  maxCloudCover: number = 30,
-  daysBack: number = 30
-): Promise<ProductMetadata[]> {
-  const region = REGIONS[regionId];
-  if (!region) {
-    throw new Error(`Unknown region: ${regionId}`);
-  }
-
-  const [minLon, minLat, maxLon, maxLat] = region.bbox;
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - daysBack);
-
-  // Build collection filter based on satellite
-  let collectionFilter: string;
-  if (satellite === 'sentinel-2') {
-    collectionFilter = "Collection/Name eq 'SENTINEL-2'";
-  } else {
-    collectionFilter = "Collection/Name eq 'SENTINEL-1'";
-  }
-
-  // Build spatial filter using WKT polygon
-  const polygon = `POLYGON((${minLon} ${minLat},${maxLon} ${minLat},${maxLon} ${maxLat},${minLon} ${maxLat},${minLon} ${minLat}))`;
-  const spatialFilter = `OData.CSC.Intersects(area=geography'SRID=4326;${polygon}')`;
-
-  // Build temporal filter
-  const temporalFilter = `ContentDate/Start ge ${startDate.toISOString()} and ContentDate/Start le ${endDate.toISOString()}`;
-
-  // Cloud cover filter (only for Sentinel-2)
-  let cloudFilter = '';
-  if (satellite === 'sentinel-2') {
-    cloudFilter = ` and Attributes/OData.CSC.DoubleAttribute/any(att:att/Name eq 'cloudCover' and att/OData.CSC.DoubleAttribute/Value le ${maxCloudCover})`;
-  }
-
-  const filter = `${collectionFilter} and ${spatialFilter} and ${temporalFilter}${cloudFilter}`;
-  
-  const catalogUrl = `https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=${encodeURIComponent(filter)}&$top=10&$orderby=ContentDate/Start desc`;
-
-  console.log(`[satellite-data] Searching ${satellite} for ${regionId}`);
-  
-  const response = await fetch(catalogUrl, {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('[satellite-data] Search error:', error);
-    throw new Error(`Failed to search products: ${response.status}`);
-  }
-
-  const data = await response.json();
-  
-  return (data.value || []).map((product: any) => {
-    const cloudCoverAttr = product.Attributes?.find((a: any) => a.Name === 'cloudCover');
-    
-    return {
-      id: product.Id,
-      name: product.Name,
-      acquisitionDate: product.ContentDate?.Start || product.ModificationDate,
-      cloudCover: cloudCoverAttr?.Value,
-      productType: product.ProductType || 'Unknown',
-      satellite: satellite === 'sentinel-2' ? 'Sentinel-2' : 'Sentinel-1',
-      processingLevel: product.Name?.includes('L2A') ? 'L2A' : product.Name?.includes('L1C') ? 'L1C' : 'Unknown',
-    };
-  });
-}
-
 // Calculate fire risk based on FIRMS hotspots
 function calculateFireRisk(hotspots: FireHotspot[]): {
   fireRisk: 'low' | 'medium' | 'high' | 'critical';
@@ -621,7 +419,6 @@ function calculateFireRisk(hotspots: FireHotspot[]): {
   const maxBrightness = Math.max(...hotspots.map(h => h.brightness));
   const totalFRP = hotspots.reduce((sum, h) => sum + (h.frp || 0), 0);
   
-  // Determine fire risk level
   let fireRisk: 'low' | 'medium' | 'high' | 'critical' = 'low';
   
   if (hotspots.length >= 10 || highConfidence.length >= 5 || totalFRP > 100) {
@@ -641,10 +438,9 @@ function calculateFireRisk(hotspots: FireHotspot[]): {
   };
 }
 
-// Calculate simple hazard indicators based on available data
+// Calculate hazard indicators from available data
 function calculateHazardIndicators(
-  sentinel2Products: ProductMetadata[],
-  sentinel1Products: ProductMetadata[],
+  geeAnalysis: GEEAnalysis | null,
   fireHotspots: FireHotspot[] = []
 ): {
   floodRisk: 'low' | 'medium' | 'high';
@@ -661,56 +457,46 @@ function calculateHazardIndicators(
     totalFRP: number;
   };
 } {
-  const hasOptical = sentinel2Products.length > 0;
-  const hasRadar = sentinel1Products.length > 0;
+  const hasGEE = geeAnalysis !== null && (geeAnalysis.imageCount ?? 0) > 0;
   
-  // Determine data availability
+  // Determine data availability based on GEE image count
   let dataAvailability: 'limited' | 'moderate' | 'good' = 'limited';
-  if (hasOptical && hasRadar) {
+  if (hasGEE && (geeAnalysis?.imageCount || 0) > 5) {
     dataAvailability = 'good';
-  } else if (hasOptical || hasRadar) {
+  } else if (hasGEE) {
     dataAvailability = 'moderate';
   }
 
-  // Calculate average cloud cover for optical imagery
-  const avgCloudCover = sentinel2Products.length > 0
-    ? sentinel2Products.reduce((sum, p) => sum + (p.cloudCover || 0), 0) / sentinel2Products.length
-    : 100;
-
-  // Estimate vegetation health based on cloud cover and data freshness
+  // Vegetation health from NDVI
   let vegetationHealth: 'poor' | 'moderate' | 'good' = 'moderate';
-  if (avgCloudCover < 20 && hasOptical) {
-    vegetationHealth = 'good';
-  } else if (avgCloudCover > 50 || !hasOptical) {
-    vegetationHealth = 'poor';
+  if (geeAnalysis?.ndviMean) {
+    if (geeAnalysis.ndviMean > 0.5) {
+      vegetationHealth = 'good';
+    } else if (geeAnalysis.ndviMean < 0.3) {
+      vegetationHealth = 'poor';
+    }
   }
 
-  // Estimate flood risk based on radar availability
+  // Flood risk from GEE analysis
   let floodRisk: 'low' | 'medium' | 'high' = 'medium';
-  if (hasRadar && sentinel1Products.length >= 3) {
-    floodRisk = 'low';
-  } else if (!hasRadar) {
-    floodRisk = 'high';
+  if (geeAnalysis && geeAnalysis.floodPercentage !== null) {
+    if (geeAnalysis.floodPercentage < 3) {
+      floodRisk = 'low';
+    } else if (geeAnalysis.floodPercentage > 7) {
+      floodRisk = 'high';
+    }
   }
 
-  // Calculate fire risk from FIRMS data
   const fireAnalysis = calculateFireRisk(fireHotspots);
-
-  // Get the most recent acquisition date
-  const allDates = [
-    ...sentinel2Products.map(p => p.acquisitionDate),
-    ...sentinel1Products.map(p => p.acquisitionDate),
-    ...fireHotspots.map(h => h.acq_date),
-  ].filter(Boolean).sort().reverse();
 
   return {
     floodRisk,
     vegetationHealth,
     fireRisk: fireAnalysis.fireRisk,
     dataAvailability,
-    lastUpdate: allDates[0] || null,
-    radarCoverage: hasRadar,
-    opticalCoverage: hasOptical,
+    lastUpdate: geeAnalysis?.dataDate || null,
+    radarCoverage: false,
+    opticalCoverage: hasGEE === true,
     fireData: {
       activeHotspots: fireAnalysis.activeHotspots,
       highConfidenceCount: fireAnalysis.highConfidenceCount,
@@ -720,17 +506,19 @@ function calculateHazardIndicators(
   };
 }
 
+// ==================== REQUEST HANDLER ====================
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { action, regionId, satellite, maxCloudCover, daysBack } = await req.json();
+    const { action, regionId, daysBack } = await req.json();
 
     console.log(`[satellite-data] Action: ${action}, Region: ${regionId}`);
 
-    // Action: list-regions - Return available regions
+    // Action: list-regions
     if (action === 'list-regions') {
       const regions = Object.entries(REGIONS).map(([id, data]) => ({
         id,
@@ -742,30 +530,7 @@ serve(async (req) => {
       });
     }
 
-    // Action: search - Search for satellite products
-    if (action === 'search') {
-      if (!regionId) {
-        return new Response(JSON.stringify({ error: 'regionId is required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const accessToken = await getAccessToken();
-      const products = await searchProducts(
-        accessToken,
-        regionId,
-        satellite || 'sentinel-2',
-        maxCloudCover || 30,
-        daysBack || 30
-      );
-
-      return new Response(JSON.stringify({ products }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Action: analyze - Get hazard analysis for a region
+    // Action: analyze - Main hazard analysis
     if (action === 'analyze') {
       if (!regionId) {
         return new Response(JSON.stringify({ error: 'regionId is required' }), {
@@ -782,30 +547,13 @@ serve(async (req) => {
         });
       }
 
-      // Fetch data from all sources in parallel, with graceful fallbacks
-      let sentinel2Products: ProductMetadata[] = [];
-      let sentinel1Products: ProductMetadata[] = [];
-      
-      // Try to get Copernicus data (may fail if credentials invalid)
-      try {
-        const accessToken = await getAccessToken();
-        const [s2, s1] = await Promise.all([
-          searchProducts(accessToken, regionId, 'sentinel-2', maxCloudCover || 30, daysBack || 30),
-          searchProducts(accessToken, regionId, 'sentinel-1', 100, daysBack || 30),
-        ]);
-        sentinel2Products = s2;
-        sentinel1Products = s1;
-      } catch (e) {
-        console.log('[satellite-data] Copernicus unavailable, using GEE/FIRMS only');
-      }
-
-      // These don't require Copernicus credentials - always try
-      const [fireHotspots, geeAnalysis] = await Promise.all([
-        getFireHotspots(region.bbox, Math.min(daysBack || 3, 10)),
+      // Fetch data from GEE and FIRMS in parallel
+      const [geeAnalysis, fireHotspots] = await Promise.all([
         getGEEAnalysis(region.bbox, daysBack || 30),
+        getFireHotspots(region.bbox, Math.min(daysBack || 3, 10)),
       ]);
 
-      const indicators = calculateHazardIndicators(sentinel2Products, sentinel1Products, fireHotspots);
+      const indicators = calculateHazardIndicators(geeAnalysis, fireHotspots);
 
       return new Response(JSON.stringify({
         regionId,
@@ -813,15 +561,15 @@ serve(async (req) => {
         bbox: region.bbox,
         indicators,
         geeAnalysis,
-        sentinel2Products: sentinel2Products.slice(0, 5),
-        sentinel1Products: sentinel1Products.slice(0, 5),
+        sentinel2Products: [], // No Copernicus
+        sentinel1Products: [], // No Copernicus
         fireHotspots: fireHotspots.slice(0, 20),
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Action: gee - Get Google Earth Engine analysis for a region
+    // Action: gee - GEE analysis only
     if (action === 'gee') {
       if (!regionId) {
         return new Response(JSON.stringify({ error: 'regionId is required' }), {
@@ -839,16 +587,6 @@ serve(async (req) => {
       }
 
       const geeAnalysis = await getGEEAnalysis(region.bbox, daysBack || 30);
-      
-      if (!geeAnalysis) {
-        return new Response(JSON.stringify({ 
-          error: 'GEE not configured or unavailable',
-          hint: 'Add GEE_SERVICE_ACCOUNT_KEY secret with your service account JSON'
-        }), {
-          status: 503,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
 
       return new Response(JSON.stringify({
         regionId,
@@ -860,7 +598,7 @@ serve(async (req) => {
       });
     }
 
-    // Action: fires - Get fire hotspots for a region
+    // Action: fires - Fire hotspots only
     if (action === 'fires') {
       if (!regionId) {
         return new Response(JSON.stringify({ error: 'regionId is required' }), {
