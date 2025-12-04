@@ -79,7 +79,7 @@ export function Landing() {
               <img 
                 src={saferoLogo} 
                 alt="safeRo Logo" 
-                className="w-32 h-32 md:w-40 md:h-40 object-contain animate-float drop-shadow-2xl" 
+                className="w-40 h-40 md:w-52 md:h-52 object-contain animate-float drop-shadow-2xl" 
               />
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
                 <Radio className="w-4 h-4 text-primary animate-pulse" />
@@ -260,7 +260,7 @@ export function Landing() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <img src={saferoLogo} alt="safeRo" className="w-8 h-8 object-contain" />
+              <img src={saferoLogo} alt="safeRo" className="w-10 h-10 object-contain" />
               <span className="text-sm text-muted-foreground">
                 safeRo Platform • Built for disaster risk reduction
               </span>

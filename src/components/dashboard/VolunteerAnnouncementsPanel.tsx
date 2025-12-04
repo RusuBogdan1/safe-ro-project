@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Trash2, RefreshCw, Megaphone, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { AnnouncementCreationForm } from "./AnnouncementCreationForm";
 
 interface Announcement {
   id: string;
@@ -15,6 +16,7 @@ interface Announcement {
   is_active: boolean;
   created_at: string;
   expires_at: string | null;
+  volunteer_count?: number;
 }
 
 const MAX_ANNOUNCEMENTS = 3;
@@ -34,7 +36,19 @@ export function VolunteerAnnouncementsPanel() {
         .limit(MAX_ANNOUNCEMENTS);
 
       if (error) throw error;
-      setAnnouncements(data || []);
+
+      // Fetch volunteer counts for each announcement
+      const announcementsWithCounts = await Promise.all(
+        (data || []).map(async (announcement) => {
+          const { count } = await supabase
+            .from("volunteer_signups")
+            .select("*", { count: "exact", head: true })
+            .eq("announcement_id", announcement.id);
+          return { ...announcement, volunteer_count: count || 0 };
+        })
+      );
+
+      setAnnouncements(announcementsWithCounts);
     } catch {
       toast.error("Failed to load announcements");
     } finally {
@@ -136,15 +150,18 @@ export function VolunteerAnnouncementsPanel() {
             {announcements.length}/{MAX_ANNOUNCEMENTS}
           </Badge>
         </h3>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={fetchAnnouncements}
-          disabled={isLoading}
-          className="h-8 w-8 p-0"
-        >
-          <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <AnnouncementCreationForm onCreated={fetchAnnouncements} />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchAnnouncements}
+            disabled={isLoading}
+            className="h-8 w-8 p-0"
+          >
+            <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+          </Button>
+        </div>
       </div>
 
       {/* Content */}
@@ -202,9 +219,12 @@ export function VolunteerAnnouncementsPanel() {
                   {announcement.message}
                 </p>
                 
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
-                  <Users className="w-3 h-3" />
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground/70">
                   <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-1 text-primary font-medium">
+                    <Users className="w-3 h-3" />
+                    <span>{announcement.volunteer_count || 0} volunteers</span>
+                  </div>
                 </div>
               </div>
             ))}

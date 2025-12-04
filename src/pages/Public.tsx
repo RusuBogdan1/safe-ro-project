@@ -12,6 +12,7 @@ const emailSchema = z.string()
   .trim()
   .email("Please enter a valid email address")
   .max(255, "Email is too long");
+
 import { 
   Search, 
   Bell, 
@@ -25,10 +26,17 @@ import {
   Mail,
   ChevronRight,
   Flame,
-  Users
+  Users,
+  UserPlus,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { VolunteerAnnouncement } from "@/types";
+
+interface AnnouncementWithSignup extends VolunteerAnnouncement {
+  isSigningUp?: boolean;
+  volunteerEmail?: string;
+}
 
 type RiskLevel = "low" | "medium" | "high" | "critical";
 
@@ -80,7 +88,9 @@ export function Public() {
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const [volunteerAnnouncements, setVolunteerAnnouncements] = useState<VolunteerAnnouncement[]>([]);
+  const [volunteerAnnouncements, setVolunteerAnnouncements] = useState<AnnouncementWithSignup[]>([]);
+  const [volunteerEmails, setVolunteerEmails] = useState<Record<string, string>>({});
+  const [signingUpFor, setSigningUpFor] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
@@ -141,6 +151,39 @@ export function Public() {
 
   const criticalRegions = regionStatuses.filter((r) => r.riskLevel === "critical" || r.riskLevel === "high");
 
+  const handleVolunteerSignup = async (announcementId: string) => {
+    const email = volunteerEmails[announcementId];
+    const emailResult = emailSchema.safeParse(email);
+    
+    if (!emailResult.success) {
+      toast.error(emailResult.error.errors[0].message);
+      return;
+    }
+
+    setSigningUpFor(announcementId);
+    try {
+      const { error } = await supabase.from("volunteer_signups").insert({
+        announcement_id: announcementId,
+        email: emailResult.data,
+      });
+
+      if (error) {
+        if (error.code === "23505") {
+          toast.error("You've already signed up for this request");
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success("Thank you for volunteering! The institution will contact you.");
+        setVolunteerEmails({ ...volunteerEmails, [announcementId]: "" });
+      }
+    } catch {
+      toast.error("Failed to sign up. Please try again.");
+    } finally {
+      setSigningUpFor(null);
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -184,7 +227,7 @@ export function Public() {
                 key={announcement.id}
                 className="p-4 rounded-xl bg-primary/10 border border-primary/30"
               >
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="font-medium text-primary">{announcement.region_name}</p>
                     <p className="text-sm text-muted-foreground mt-1">{announcement.message}</p>
@@ -195,6 +238,31 @@ export function Public() {
                   <Badge className="bg-primary/20 text-primary">
                     {announcement.hazard_type}
                   </Badge>
+                </div>
+                
+                {/* Volunteer Signup */}
+                <div className="flex items-center gap-2 pt-3 border-t border-primary/20">
+                  <UserPlus className="w-4 h-4 text-primary flex-shrink-0" />
+                  <Input
+                    type="email"
+                    placeholder="Your email to volunteer"
+                    value={volunteerEmails[announcement.id] || ""}
+                    onChange={(e) => setVolunteerEmails({ ...volunteerEmails, [announcement.id]: e.target.value })}
+                    className="h-8 text-sm bg-background/50 border-primary/30"
+                  />
+                  <Button
+                    size="sm"
+                    variant="hero"
+                    onClick={() => handleVolunteerSignup(announcement.id)}
+                    disabled={signingUpFor === announcement.id || !volunteerEmails[announcement.id]}
+                    className="h-8 px-3"
+                  >
+                    {signingUpFor === announcement.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Sign Up"
+                    )}
+                  </Button>
                 </div>
               </div>
             ))}

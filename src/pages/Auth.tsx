@@ -107,7 +107,7 @@ export function Auth() {
           <div className="glass-panel-elevated p-8">
             {/* Header */}
             <div className="text-center mb-8">
-              <img src={saferoLogo} alt="safeRo Logo" className="w-24 h-24 mx-auto mb-4 object-contain" />
+              <img src={saferoLogo} alt="safeRo Logo" className="w-32 h-32 mx-auto mb-4 object-contain" />
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Shield className="w-5 h-5 text-primary" />
                 <span className="text-sm font-medium text-primary">Institutional Access</span>

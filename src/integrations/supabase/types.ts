@@ -125,6 +125,35 @@ export type Database = {
         }
         Relationships: []
       }
+      volunteer_signups: {
+        Row: {
+          announcement_id: string
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          announcement_id: string
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          announcement_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_signups_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "volunteer_announcements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
