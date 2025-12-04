@@ -2,3 +2,6 @@ project_id = "gonugtfffncnpyhleeqx"
 
 [functions.manage-subscription]
 verify_jwt = false
+
+[functions.satellite-data]
+verify_jwt = false
