@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Trash2, RefreshCw, Megaphone } from "lucide-react";
+import { Users, Trash2, RefreshCw, Megaphone, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,8 @@ interface Announcement {
   expires_at: string | null;
 }
 
+const MAX_ANNOUNCEMENTS = 3;
+
 export function VolunteerAnnouncementsPanel() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,7 +30,8 @@ export function VolunteerAnnouncementsPanel() {
         .from("volunteer_announcements")
         .select("*")
         .eq("is_active", true)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(MAX_ANNOUNCEMENTS);
 
       if (error) throw error;
       setAnnouncements(data || []);
@@ -39,8 +42,58 @@ export function VolunteerAnnouncementsPanel() {
     }
   };
 
+  // Cleanup old announcements - keep only latest 3
+  const cleanupOldAnnouncements = async () => {
+    try {
+      // Get all active announcements ordered by date
+      const { data: allAnnouncements, error: fetchError } = await supabase
+        .from("volunteer_announcements")
+        .select("id, created_at")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      // If more than MAX_ANNOUNCEMENTS, deactivate the oldest ones
+      if (allAnnouncements && allAnnouncements.length > MAX_ANNOUNCEMENTS) {
+        const toDeactivate = allAnnouncements.slice(MAX_ANNOUNCEMENTS).map(a => a.id);
+        
+        const { error: updateError } = await supabase
+          .from("volunteer_announcements")
+          .update({ is_active: false })
+          .in("id", toDeactivate);
+
+        if (updateError) throw updateError;
+      }
+    } catch (error) {
+      console.error("Failed to cleanup old announcements:", error);
+    }
+  };
+
   useEffect(() => {
     fetchAnnouncements();
+    cleanupOldAnnouncements();
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('volunteer_announcements_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'volunteer_announcements',
+        },
+        () => {
+          fetchAnnouncements();
+          cleanupOldAnnouncements();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleDeactivate = async (id: string) => {
@@ -65,70 +118,98 @@ export function VolunteerAnnouncementsPanel() {
     hybrid: "bg-alert/20 text-alert border-alert/30",
   };
 
+  const hazardIcons: Record<string, string> = {
+    flood: "🌊",
+    vegetation: "🌿",
+    fire: "🔥",
+    hybrid: "⚠️",
+  };
+
   return (
-    <div className="glass-panel border border-border rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="glass-panel-elevated border border-border rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 bg-gradient-to-r from-alert/10 to-danger/10 border-b border-border flex items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
-          <Megaphone className="w-4 h-4 text-primary" />
-          Active Announcements
+          <Megaphone className="w-4 h-4 text-alert" />
+          <span>Active Volunteer Requests</span>
+          <Badge variant="outline" className="ml-1 text-xs bg-background/50">
+            {announcements.length}/{MAX_ANNOUNCEMENTS}
+          </Badge>
         </h3>
         <Button
           variant="ghost"
           size="sm"
           onClick={fetchAnnouncements}
           disabled={isLoading}
+          className="h-8 w-8 p-0"
         >
           <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="text-sm text-muted-foreground text-center py-4">
-          Loading...
-        </div>
-      ) : announcements.length === 0 ? (
-        <div className="text-sm text-muted-foreground text-center py-4">
-          No active announcements
-        </div>
-      ) : (
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          {announcements.map((announcement) => (
-            <div
-              key={announcement.id}
-              className="p-3 rounded-lg bg-card/50 border border-border space-y-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+      {/* Content */}
+      <div className="p-3">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-6">
+            <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : announcements.length === 0 ? (
+          <div className="text-center py-6 space-y-2">
+            <AlertCircle className="w-8 h-8 text-muted-foreground/50 mx-auto" />
+            <p className="text-sm text-muted-foreground">No active volunteer requests</p>
+            <p className="text-xs text-muted-foreground/70">
+              High-risk zones will trigger volunteer requests
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {announcements.map((announcement, index) => (
+              <div
+                key={announcement.id}
+                className={cn(
+                  "relative p-4 rounded-lg border transition-all duration-300 hover:shadow-lg",
+                  "bg-gradient-to-br from-card to-card/50",
+                  index === 0 && "ring-1 ring-alert/30"
+                )}
+              >
+                {index === 0 && (
+                  <div className="absolute -top-2 -right-2">
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-alert text-alert-foreground rounded-full uppercase">
+                      Latest
+                    </span>
+                  </div>
+                )}
+                
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{hazardIcons[announcement.hazard_type] || "⚠️"}</span>
                     <Badge className={cn("text-xs", hazardColors[announcement.hazard_type] || hazardColors.hybrid)}>
                       {announcement.hazard_type}
                     </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {announcement.region_name}
-                    </span>
                   </div>
-                  <p className="text-sm">{announcement.message}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Posted: {new Date(announcement.created_at).toLocaleString()}
-                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeactivate(announcement.id)}
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-danger hover:bg-danger/10"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDeactivate(announcement.id)}
-                  className="text-muted-foreground hover:text-danger"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                
+                <h4 className="font-medium text-sm mb-1">{announcement.region_name}</h4>
+                <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                  {announcement.message}
+                </p>
+                
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
+                  <Users className="w-3 h-3" />
+                  <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="text-xs text-muted-foreground flex items-center gap-1 pt-2 border-t border-border">
-        <Users className="w-3 h-3" />
-        {announcements.length} active announcement{announcements.length !== 1 ? "s" : ""}
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

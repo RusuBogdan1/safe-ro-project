@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
-import { SafeRoLogo } from "@/components/icons/SafeRoLogo";
+import saferoLogo from "@/assets/safero-logo.png";
 import { 
   Flame, 
   Shield, 
@@ -75,8 +75,12 @@ export function Landing() {
         <div className="relative z-10 container mx-auto px-4 text-center">
           <div className="max-w-4xl mx-auto space-y-8">
             {/* Logo and Badge */}
-            <div className="flex flex-col items-center gap-4 animate-fade-in-up">
-              <SafeRoLogo size="xl" className="animate-float" />
+            <div className="flex flex-col items-center gap-6 animate-fade-in-up">
+              <img 
+                src={saferoLogo} 
+                alt="safeRo Logo" 
+                className="w-32 h-32 md:w-40 md:h-40 object-contain animate-float drop-shadow-2xl" 
+              />
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
                 <Radio className="w-4 h-4 text-primary animate-pulse" />
                 <span className="text-sm font-medium text-primary">
@@ -88,7 +92,7 @@ export function Landing() {
             {/* Main Heading */}
             <div className="space-y-4 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
               <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
-                <span className="text-foreground">SAFE-RO</span>
+                <span className="text-foreground">safeRo</span>
                 <br />
                 <span className="gradient-text">Hazard Monitoring</span>
               </h1>
@@ -256,9 +260,9 @@ export function Landing() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <SafeRoLogo size="sm" />
+              <img src={saferoLogo} alt="safeRo" className="w-8 h-8 object-contain" />
               <span className="text-sm text-muted-foreground">
-                SAFE-RO Platform • Built for disaster risk reduction
+                safeRo Platform • Built for disaster risk reduction
               </span>
             </div>
             <div className="text-sm text-muted-foreground">

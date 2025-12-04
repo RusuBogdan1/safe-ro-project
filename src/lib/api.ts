@@ -210,40 +210,87 @@ function generateMockHazardMap(
   };
 }
 
+function calculateRiskLevel(floodPct: number, firePct: number, ndvi: number): 'low' | 'medium' | 'high' | 'critical' {
+  // Calculate risk based on all factors
+  const maxHazardPct = Math.max(floodPct, firePct);
+  
+  // Low NDVI (< 0.3) indicates stressed vegetation, increasing risk
+  const vegetationStress = ndvi < 0.3 ? 1 : ndvi < 0.4 ? 0.5 : 0;
+  
+  // Combined risk score
+  const riskScore = maxHazardPct + (vegetationStress * 3);
+  
+  // Thresholds:
+  // Critical: > 12% hazard OR > 15 combined score
+  // High: > 7% hazard OR > 10 combined score  
+  // Medium: > 3% hazard OR > 5 combined score
+  // Low: everything else
+  
+  if (riskScore > 15 || maxHazardPct > 12) return 'critical';
+  if (riskScore > 10 || maxHazardPct > 7) return 'high';
+  if (riskScore > 5 || maxHazardPct > 3) return 'medium';
+  return 'low';
+}
+
 function generateMockSummary(regionId: string): HazardSummary {
   const region = MOCK_REGIONS.find((r) => r.id === regionId);
-  const riskLevels: Array<'low' | 'medium' | 'high' | 'critical'> = [
-    'low',
-    'medium',
-    'high',
-    'critical',
-  ];
 
-  // Generate realistic-ish random data
-  const floodPercentage = Math.random() * 15;
-  const firePercentage = Math.random() * 12;
-  const avgNdvi = 0.3 + Math.random() * 0.4;
-  const maxRisk = Math.max(floodPercentage, firePercentage);
-  const riskIndex = maxRisk > 10 ? 3 : maxRisk > 5 ? 2 : maxRisk > 2 ? 1 : 0;
+  // Generate realistic random data with weighted distribution
+  // Most regions should be low-medium risk, fewer high/critical
+  const random = Math.random();
+  let floodPercentage: number;
+  let firePercentage: number;
+  
+  if (random < 0.5) {
+    // 50% chance: low risk (0-4%)
+    floodPercentage = Math.random() * 4;
+    firePercentage = Math.random() * 3;
+  } else if (random < 0.75) {
+    // 25% chance: medium risk (3-8%)
+    floodPercentage = 3 + Math.random() * 5;
+    firePercentage = 2 + Math.random() * 4;
+  } else if (random < 0.9) {
+    // 15% chance: high risk (7-13%)
+    floodPercentage = 7 + Math.random() * 6;
+    firePercentage = 5 + Math.random() * 5;
+  } else {
+    // 10% chance: critical risk (12-20%)
+    floodPercentage = 12 + Math.random() * 8;
+    firePercentage = 10 + Math.random() * 6;
+  }
+  
+  const avgNdvi = 0.25 + Math.random() * 0.5; // 0.25 - 0.75
+  const riskLevel = calculateRiskLevel(floodPercentage, firePercentage, avgNdvi);
 
   const alerts: HazardSummary['alerts'] = [];
   
-  if (floodPercentage > 5) {
+  // Generate alerts based on actual risk thresholds
+  if (floodPercentage > 7) {
     alerts.push({
       id: `alert_flood_${Date.now()}`,
       type: 'flood',
-      severity: floodPercentage > 10 ? 'danger' : 'warning',
+      severity: floodPercentage > 12 ? 'danger' : 'warning',
       message: `Elevated water levels detected in ${region?.displayName || regionId}`,
       timestamp: new Date().toISOString(),
     });
   }
   
-  if (firePercentage > 5) {
+  if (firePercentage > 7) {
     alerts.push({
       id: `alert_fire_${Date.now()}`,
       type: 'fire_risk',
-      severity: firePercentage > 10 ? 'danger' : 'warning',
+      severity: firePercentage > 12 ? 'danger' : 'warning',
       message: `Fire risk detected in ${region?.displayName || regionId}`,
+      timestamp: new Date().toISOString(),
+    });
+  }
+  
+  if (avgNdvi < 0.3) {
+    alerts.push({
+      id: `alert_veg_${Date.now()}`,
+      type: 'vegetation_stress',
+      severity: avgNdvi < 0.2 ? 'danger' : 'warning',
+      message: `Vegetation stress detected in ${region?.displayName || regionId}`,
       timestamp: new Date().toISOString(),
     });
   }
@@ -254,7 +301,7 @@ function generateMockSummary(regionId: string): HazardSummary {
     flood_percentage: Number(floodPercentage.toFixed(2)),
     fire_percentage: Number(firePercentage.toFixed(2)),
     avg_ndvi: Number(avgNdvi.toFixed(3)),
-    risk_level: riskLevels[riskIndex],
+    risk_level: riskLevel,
     last_updated: new Date().toISOString(),
     alerts,
   };
