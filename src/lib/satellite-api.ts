@@ -45,11 +45,24 @@ export interface HazardIndicators {
   fireData: FireData;
 }
 
+// GEE Analysis Results
+export interface GEEAnalysis {
+  ndviMean: number | null;
+  ndviMin: number | null;
+  ndviMax: number | null;
+  floodPercentage: number | null;
+  waterPercentage: number | null;
+  vegetationStress: 'low' | 'moderate' | 'high' | null;
+  dataDate: string | null;
+  source: 'gee';
+}
+
 export interface RegionAnalysis {
   regionId: string;
   regionName: string;
   bbox: number[];
   indicators: HazardIndicators;
+  geeAnalysis?: GEEAnalysis | null;
   sentinel2Products: ProductMetadata[];
   sentinel1Products: ProductMetadata[];
   fireHotspots: FireHotspot[];
@@ -65,6 +78,12 @@ export interface FireAnalysis {
   maxBrightness: number;
   totalFRP: number;
   hotspots: FireHotspot[];
+}
+
+export interface GEERegionAnalysis extends GEEAnalysis {
+  regionId: string;
+  regionName: string;
+  bbox: number[];
 }
 
 // List available Romanian regions
@@ -165,6 +184,27 @@ export async function getFireData(
   if (error) {
     console.error('[satellite-api] getFireData error:', error);
     throw new Error(error.message || 'Failed to get fire data');
+  }
+
+  return data;
+}
+
+// Get Google Earth Engine analysis for a specific region (NDVI, flood detection)
+export async function getGEEData(
+  regionId: string,
+  daysBack: number = 30
+): Promise<GEERegionAnalysis> {
+  const { data, error } = await supabase.functions.invoke('satellite-data', {
+    body: { 
+      action: 'gee',
+      regionId,
+      daysBack,
+    },
+  });
+
+  if (error) {
+    console.error('[satellite-api] getGEEData error:', error);
+    throw new Error(error.message || 'Failed to get GEE data');
   }
 
   return data;
