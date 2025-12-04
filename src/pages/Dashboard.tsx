@@ -78,8 +78,9 @@ export function Dashboard() {
 
   return (
     <Layout fullHeight>
-      <div className="h-full flex">
-        <aside className="w-80 lg:w-96 flex-shrink-0 glass-panel border-r border-border overflow-auto">
+      <div className="h-full flex flex-col lg:flex-row">
+        {/* Left Sidebar - Control Panel */}
+        <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0 glass-panel-elevated border-b lg:border-b-0 lg:border-r border-border overflow-auto">
           <ControlPanel
             regions={regions}
             selectedRegion={selectedRegion}
@@ -92,13 +93,22 @@ export function Dashboard() {
             onRefresh={handleRefresh}
           />
         </aside>
-        <div className="flex-1 p-4 min-w-0 flex flex-col gap-4">
-          <div className="flex-1 min-h-0">
-            <Suspense fallback={<MapFallback />}>
-              <HazardMap region={selectedRegion} hazardType={hazardType} className="h-full w-full" />
-            </Suspense>
+        
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Map Section */}
+          <div className="flex-1 p-4 min-h-0">
+            <div className="h-full rounded-xl overflow-hidden border border-border/50 shadow-lg">
+              <Suspense fallback={<MapFallback />}>
+                <HazardMap region={selectedRegion} hazardType={hazardType} className="h-full w-full" />
+              </Suspense>
+            </div>
           </div>
-          <VolunteerAnnouncementsPanel />
+          
+          {/* Announcements Section */}
+          <div className="p-4 pt-0">
+            <VolunteerAnnouncementsPanel />
+          </div>
         </div>
       </div>
     </Layout>
