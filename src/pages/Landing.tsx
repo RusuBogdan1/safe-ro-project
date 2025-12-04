@@ -98,7 +98,7 @@ export function Landing() {
               </h1>
               <p className="text-base sm:text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto text-balance px-2">
                 Real-time satellite-based natural hazard detection for Romania using 
-                Sentinel-1 &amp; Sentinel-2 Earth observation data.
+                Sentinel-1, Sentinel-2, and NASA FIRMS data.
               </p>
             </div>
 
@@ -266,7 +266,7 @@ export function Landing() {
               </span>
             </div>
             <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-right">
-              Data: Copernicus Sentinel
+              Data: Google Earth Engine • NASA FIRMS
             </div>
           </div>
         </div>

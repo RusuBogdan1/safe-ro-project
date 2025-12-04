@@ -71,19 +71,19 @@ const architecture = [
     layer: "Frontend",
     tech: "React + TypeScript + Tailwind",
     icon: Cpu,
-    description: "Modern web interface with React-Leaflet for interactive mapping",
+    description: "Modern web interface with interactive mapping for hazard visualization",
   },
   {
     layer: "Backend",
-    tech: "FastAPI (Python)",
+    tech: "Supabase Edge Functions",
     icon: Database,
-    description: "REST API exposing processing functions from SAFE-RO core modules",
+    description: "Serverless functions connecting to GEE and NASA FIRMS APIs",
   },
   {
     layer: "Data Pipeline",
-    tech: "Copernicus + Google Drive",
+    tech: "GEE + NASA FIRMS",
     icon: Cloud,
-    description: "Automated acquisition from CDSE with cloud storage caching",
+    description: "Google Earth Engine for NDVI/flood analysis, FIRMS for fire detection",
   },
 ];
 
@@ -107,7 +107,7 @@ export function About() {
             <h2 className="text-2xl font-bold mb-4">Mission</h2>
             <p className="text-muted-foreground leading-relaxed">
               SAFE-RO bridges the gap between raw satellite telemetry and local crisis management 
-              by processing Sentinel-1 (Radar) and Sentinel-2 (Optical) data into actionable insights. 
+              by processing data from Google Earth Engine (Sentinel-2) and NASA FIRMS into actionable insights. 
               The platform aligns with national disaster risk reduction strategies by serving both 
               citizens (simplified alerts) and institutions (advanced analytics).
             </p>
@@ -237,32 +237,38 @@ export function About() {
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="glass-panel p-6">
-              <h3 className="font-semibold mb-2">Copernicus Data Space Ecosystem</h3>
+              <h3 className="font-semibold mb-2">Google Earth Engine</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Primary source for Sentinel satellite data. Provides free, open access to 
-                European Space Agency's Earth observation archives.
+                Cloud-based geospatial analysis platform providing access to Sentinel-2 imagery 
+                for NDVI vegetation health analysis and flood detection algorithms.
               </p>
               <a
-                href="https://dataspace.copernicus.eu/"
+                href="https://earthengine.google.com/"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <Button variant="outline" size="sm">
                   <ExternalLink className="w-4 h-4" />
-                  Visit CDSE
+                  Visit GEE
                 </Button>
               </a>
             </div>
             <div className="glass-panel p-6">
-              <h3 className="font-semibold mb-2">Google Drive Integration</h3>
+              <h3 className="font-semibold mb-2">NASA FIRMS</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Cloud storage for processed imagery and cached data. Reduces local disk usage 
-                and enables sharing between users.
+                Fire Information for Resource Management System provides real-time active fire 
+                detection data from VIIRS and MODIS satellite sensors worldwide.
               </p>
-              <Button variant="outline" size="sm" disabled>
-                <Cloud className="w-4 h-4" />
-                OAuth Required
-              </Button>
+              <a
+                href="https://firms.modaps.eosdis.nasa.gov/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" size="sm">
+                  <Flame className="w-4 h-4" />
+                  Visit FIRMS
+                </Button>
+              </a>
             </div>
           </div>
         </section>
