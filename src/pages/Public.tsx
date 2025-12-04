@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
-import { analyzeAllRegions, type RegionAnalysis } from "@/lib/satellite-api";
+import { getCachedSatelliteData } from "@/lib/satellite-cache";
+import { type RegionAnalysis } from "@/lib/satellite-api";
 
 const emailSchema = z.string()
   .trim()
@@ -105,16 +106,21 @@ export function Public() {
   const [regionStatuses, setRegionStatuses] = useState<RegionStatus[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
+  const [lastCacheTime, setLastCacheTime] = useState<number | null>(null);
 
-  // Fetch satellite data
+  // Fetch satellite data (with caching)
   useEffect(() => {
     const fetchSatelliteData = async () => {
       setIsLoadingData(true);
       setDataError(null);
       try {
-        const analyses = await analyzeAllRegions(50, 14);
+        const { data: analyses, fromCache, cacheTime } = await getCachedSatelliteData(false);
         const statuses = analyses.map(convertAnalysisToStatus);
         setRegionStatuses(statuses);
+        setLastCacheTime(cacheTime);
+        if (fromCache) {
+          console.log("Loaded satellite data from cache");
+        }
       } catch (error) {
         console.error("Failed to fetch satellite data:", error);
         setDataError("Unable to load satellite data. Please try again.");
@@ -149,9 +155,10 @@ export function Public() {
     setIsLoadingData(true);
     setDataError(null);
     try {
-      const analyses = await analyzeAllRegions(50, 14);
+      const { data: analyses, cacheTime } = await getCachedSatelliteData(true); // Force refresh
       const statuses = analyses.map(convertAnalysisToStatus);
       setRegionStatuses(statuses);
+      setLastCacheTime(cacheTime);
       toast.success("Data refreshed successfully");
     } catch (error) {
       console.error("Failed to refresh satellite data:", error);
@@ -247,16 +254,22 @@ export function Public() {
             Real-time satellite monitoring of natural hazards across Romanian regions. 
             Check your area's status and subscribe to alerts.
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefreshData}
-            disabled={isLoadingData}
-            className="mt-4"
-          >
-            <RefreshCw className={cn("w-4 h-4 mr-2", isLoadingData && "animate-spin")} />
-            {isLoadingData ? "Loading..." : "Refresh Data"}
-          </Button>
+          <div className="flex flex-col items-center gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshData}
+              disabled={isLoadingData}
+            >
+              <RefreshCw className={cn("w-4 h-4 mr-2", isLoadingData && "animate-spin")} />
+              {isLoadingData ? "Loading..." : "Refresh Data"}
+            </Button>
+            {lastCacheTime && (
+              <p className="text-xs text-muted-foreground">
+                Last updated: {new Date(lastCacheTime).toLocaleString()}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Active Alerts Banner */}
