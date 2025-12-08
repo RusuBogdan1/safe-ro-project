@@ -1,73 +1,226 @@
-# Welcome to your Lovable project
+🛡️ safeRo
+AI-Powered Environmental Risk & Disaster Response Platform
 
-## Project info
+safeRo este o platformă inteligentă pentru monitorizarea mediului, evaluarea riscurilor și generarea automată de rapoarte AI.
+Creată pentru fermieri, instituții, autorități și companii, safeRo oferă o analiză rapidă și accesibilă asupra impactului dezastrelor naturale și asupra terenurilor din România.
 
-**URL**: https://lovable.dev/projects/b142a347-9f4a-4e2d-ae31-bf3929bc6341
+📖 Overview
 
-## How can I edit this code?
+safeRo oferă utilizatorilor acces instant la insight-uri generate cu inteligență artificială:
 
-There are several ways of editing your application.
+✔️ Analiză AI a riscurilor asupra terenurilor
+✔️ Evaluare rapidă a dezastrelor naturale
+✔️ Scoring de risc pentru agricultură și infrastructură
+✔️ Generare automată de rapoarte PDF
+✔️ Dashboard interactiv cu hărți și statistici
 
-**Use Lovable**
+Platforma a fost concepută pentru a aduce transparență, viteză și claritate în evaluările de mediu.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b142a347-9f4a-4e2d-ae31-bf3929bc6341) and start prompting.
+🚀 Key Features
+🧠 AI Environmental Insights
 
-Changes made via Lovable will be committed automatically to this repo.
+Analiză asistată de modele AI moderne (Groq + LLaMA):
 
-**Use your preferred IDE**
+Impact asupra culturilor agricole
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Riscuri în ecosistemele naturale
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Analiză climatică și meteorologică
 
-Follow these steps:
+Evaluări asupra zonelor locuite
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+🌪️ Natural Disaster Assessment
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Evaluarea impactului dezastrelor:
 
-# Step 3: Install the necessary dependencies.
-npm i
+Inundații
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+Incendii
+
+Secetă
+
+Alunecări de teren
+
+📄 Automated PDF Reports
+
+safeRo generează rapoarte profesioniste cu:
+
+Evaluări AI structurate
+
+Hărți și modele de risc
+
+Analiză tehnică + recomandări
+
+🗺️ Interactive Geographic Dashboard
+
+Hărți intuitive pentru:
+
+Marcarea zonelor analizate
+
+Vizualizare impact
+
+Reevaluarea zonelor istorice
+
+🔒 Modern Authentication
+
+Stack Auth
+
+Token-based secure sessions
+
+Ready for production deployments
+
+🏗️ Tech Stack
+Frontend
+
+Next.js 16
+
+TypeScript
+
+Tailwind CSS
+
+Leaflet Maps
+
+shadcn/ui & Radix
+
+Recharts
+
+Backend
+
+FastAPI
+
+Python 3.11+
+
+Neon PostgreSQL
+
+Stack Auth (secure backend authentication)
+
+AI Layer
+
+Groq API
+
+LLaMA 3.3 (70B)
+
+Markdown → PDF Parser
+
+📂 Project Structure
+safeRo/
+├── backend/          # FastAPI AI & PDF services
+├── frontend/         # Next.js 16 web interface
+└── README.md         # Project documentation
+
+🔧 Installation & Setup
+1️⃣ Clone repo
+git clone https://github.com/<user>/safeRo.git
+cd safeRo
+
+🖥️ Backend Setup (FastAPI)
+cd backend
+python -m venv venv
+source venv/bin/activate
+
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload
+
+
+Setează variabile precum:
+
+GROQ_API_KEY
+
+DATABASE_URL
+
+STACK_SECRET_SERVER_KEY
+
+🌐 Frontend Setup (Next.js)
+cd frontend
+npm install
+cp .env.example .env.local
 npm run dev
-```
 
-**Edit a file directly in GitHub**
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Variabile necesare:
 
-**Use GitHub Codespaces**
+NEXT_PUBLIC_API_URL
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+NEXT_PUBLIC_STACK_PROJECT_ID
 
-## What technologies are used for this project?
+NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY
 
-This project is built with:
+📊 Core Workflow
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Utilizatorul selectează o zonă/teren
 
-## How can I deploy this project?
+AI procesează riscurile și impactul
 
-Simply open [Lovable](https://lovable.dev/projects/b142a347-9f4a-4e2d-ae31-bf3929bc6341) and click on Share -> Publish.
+Platforma generează statistici + hărți
 
-## Can I connect a custom domain to my Lovable project?
+Este creat un raport PDF profesional
 
-Yes, you can!
+Dashboard-ul afișează scorurile de risc
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+🗄️ Simplified Database Model
+users
+areas
+analyses
+reports
+risk_scores
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+Legături optimizate pentru evaluări rapide.
+
+🧪 Example API Endpoints
+🔍 POST /api/analyze
+{
+  "location": "46.783, 23.623",
+  "type": "flood"
+}
+
+📄 GET /api/report/{id}
+
+Returnează PDF generat automat.
+
+🎨 UI Pages
+
+/ — Landing Page safeRo
+
+/dashboard — Hartă + scoruri
+
+/analysis — Analiză nouă
+
+/reports — Istoric rapoarte
+
+/auth — Autentificare
+
+🐛 Known Issues
+Problemă	Soluție
+Diacritice PDF	Normalizare Unicode → ASCII
+Timeout AI	Folosire Groq pentru viteză mare
+Layer hărți	Fallback OpenStreetMap
+🚧 Roadmap
+
+📡 Integrare sateliți (Sentinel)
+
+🔥 Real-time disaster alerts
+
+🇬🇧 Limbi multiple (RO/EN)
+
+📱 safeRo Mobile App
+
+📈 Analiză istorică multi-anuală
+
+🤖 AI damage classification
+
+🌍 API public pentru instituții
+
+📄 License
+
+MIT License — vezi fișierul LICENSE.
+
+👥 Team
+
+Dezvoltat la hackathoane & proiecte de cercetare.
+Cu pasiune pentru tehnologie, AI și reziliență climatică.
+
+📬 Contact
+
+Pentru suport: deschide un Issue pe GitHub.
