@@ -1,226 +1,106 @@
-🛡️ safeRo
-AI-Powered Environmental Risk & Disaster Response Platform
+# 🛡️ SAFE-RO - Disaster Management Platform
 
-safeRo este o platformă inteligentă pentru monitorizarea mediului, evaluarea riscurilor și generarea automată de rapoarte AI.
-Creată pentru fermieri, instituții, autorități și companii, safeRo oferă o analiză rapidă și accesibilă asupra impactului dezastrelor naturale și asupra terenurilor din România.
+SAFE-RO is a national-scale software solution that integrates Earth observation data with geospatial analytics to support both the public and authorities in disaster management. The system combines satellite monitoring, data processing, and alert delivery into one accessible platform.
 
-📖 Overview
+This repository contains the frontend application for the SAFE-RO platform, built with React, Vite, and Supabase.
 
-safeRo oferă utilizatorilor acces instant la insight-uri generate cu inteligență artificială:
+## ✨ Features
 
-✔️ Analiză AI a riscurilor asupra terenurilor
-✔️ Evaluare rapidă a dezastrelor naturale
-✔️ Scoring de risc pentru agricultură și infrastructură
-✔️ Generare automată de rapoarte PDF
-✔️ Dashboard interactiv cu hărți și statistici
+- **User Authentication**: Secure login and registration for volunteers and authorities using Supabase Auth.
+- **Interactive Hazard Map**: A map-based interface (`Leaflet`) to visualize disaster-related information and announcements.
+- **Role-Based Dashboards**: Separate dashboard views for the public, registered volunteers, and administrators.
+- **Announcement System**: Functionality for authorized users to create, view, and manage public safety announcements.
+- **Volunteer Management**: Panels for volunteers to view specific announcements and manage their status.
+- **Real-time Data**: Integration with Supabase for real-time database updates.
 
-Platforma a fost concepută pentru a aduce transparență, viteză și claritate în evaluările de mediu.
+## 🚀 Tech Stack
 
-🚀 Key Features
-🧠 AI Environmental Insights
+- **Frontend**: [React](https://react.dev/), [Vite](https://vitejs.dev/), [TypeScript](https://www.typescriptlang.org/)
+- **Backend & Database**: [Supabase](https://supabase.com/)
+- **UI Components**: [shadcn/ui](https://ui.shadcn.com/), [Radix UI](https://www.radix-ui.com/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Routing**: [React Router](https://reactrouter.com/)
+- **State Management**: [TanStack Query](https://tanstack.com/query/latest)
+- **Mapping**: [Leaflet](https://leafletjs.com/) & [React-Leaflet](https://react-leaflet.js.org/)
+- **Forms**: [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/)
 
-Analiză asistată de modele AI moderne (Groq + LLaMA):
+## ⚙️ Getting Started
 
-Impact asupra culturilor agricole
+Follow these instructions to set up and run the project locally.
 
-Riscuri în ecosistemele naturale
+### Prerequisites
 
-Analiză climatică și meteorologică
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- A [Supabase](https://supabase.com/) project for the backend and database.
 
-Evaluări asupra zonelor locuite
+### 1. Clone the Repository
 
-🌪️ Natural Disaster Assessment
+```bash
+git clone <repository-url>
+cd safe-ro-project
+```
 
-Evaluarea impactului dezastrelor:
+### 2. Install Dependencies
 
-Inundații
+You can use `npm`, `yarn`, or `bun`.
 
-Incendii
-
-Secetă
-
-Alunecări de teren
-
-📄 Automated PDF Reports
-
-safeRo generează rapoarte profesioniste cu:
-
-Evaluări AI structurate
-
-Hărți și modele de risc
-
-Analiză tehnică + recomandări
-
-🗺️ Interactive Geographic Dashboard
-
-Hărți intuitive pentru:
-
-Marcarea zonelor analizate
-
-Vizualizare impact
-
-Reevaluarea zonelor istorice
-
-🔒 Modern Authentication
-
-Stack Auth
-
-Token-based secure sessions
-
-Ready for production deployments
-
-🏗️ Tech Stack
-Frontend
-
-Next.js 16
-
-TypeScript
-
-Tailwind CSS
-
-Leaflet Maps
-
-shadcn/ui & Radix
-
-Recharts
-
-Backend
-
-FastAPI
-
-Python 3.11+
-
-Neon PostgreSQL
-
-Stack Auth (secure backend authentication)
-
-AI Layer
-
-Groq API
-
-LLaMA 3.3 (70B)
-
-Markdown → PDF Parser
-
-📂 Project Structure
-safeRo/
-├── backend/          # FastAPI AI & PDF services
-├── frontend/         # Next.js 16 web interface
-└── README.md         # Project documentation
-
-🔧 Installation & Setup
-1️⃣ Clone repo
-git clone https://github.com/<user>/safeRo.git
-cd safeRo
-
-🖥️ Backend Setup (FastAPI)
-cd backend
-python -m venv venv
-source venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload
-
-
-Setează variabile precum:
-
-GROQ_API_KEY
-
-DATABASE_URL
-
-STACK_SECRET_SERVER_KEY
-
-🌐 Frontend Setup (Next.js)
-cd frontend
+```bash
 npm install
-cp .env.example .env.local
+```
+
+or
+
+```bash
+bun install
+```
+
+### 3. Set Up Environment Variables
+
+Create a `.env` file in the root of the project by copying the example file:
+
+```bash
+cp .env .env.example
+```
+
+You'll need to add your Supabase project URL and anon key to the `.env` file. You can find these in your Supabase project's API settings.
+
+```
+VITE_SUPABASE_URL=YOUR_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+```
+
+### 4. Run the Development Server
+
+```bash
 npm run dev
+```
 
+The application should now be running at `http://localhost:5173`.
 
-Variabile necesare:
+## 📂 Project Structure
 
-NEXT_PUBLIC_API_URL
+Here is a high-level overview of the `src` directory:
 
-NEXT_PUBLIC_STACK_PROJECT_ID
+```
+src/
+├── assets/         # Static assets like images and logos
+├── components/     # Reusable UI components
+│   ├── auth/       # Authentication-related components
+│   ├── dashboard/  # Components for the main dashboard
+│   ├── layout/     # Layout components (Header, Sidebar)
+│   └── ui/         # Core UI elements from shadcn/ui
+├── hooks/          # Custom React hooks
+├── integrations/   # Supabase client and type definitions
+├── lib/            # Utility functions and API helpers
+├── pages/          # Top-level page components for each route
+└── types/          # Global TypeScript type definitions
+```
 
-NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY
+## 🤝 Contributing
 
-📊 Core Workflow
+Contributions are welcome! Please open an issue or submit a pull request.
+You can find the repository at: https://github.com/RusuBogdan1/safe-ro-project.git
 
-Utilizatorul selectează o zonă/teren
+## 📄 License
 
-AI procesează riscurile și impactul
-
-Platforma generează statistici + hărți
-
-Este creat un raport PDF profesional
-
-Dashboard-ul afișează scorurile de risc
-
-🗄️ Simplified Database Model
-users
-areas
-analyses
-reports
-risk_scores
-
-
-Legături optimizate pentru evaluări rapide.
-
-🧪 Example API Endpoints
-🔍 POST /api/analyze
-{
-  "location": "46.783, 23.623",
-  "type": "flood"
-}
-
-📄 GET /api/report/{id}
-
-Returnează PDF generat automat.
-
-🎨 UI Pages
-
-/ — Landing Page safeRo
-
-/dashboard — Hartă + scoruri
-
-/analysis — Analiză nouă
-
-/reports — Istoric rapoarte
-
-/auth — Autentificare
-
-🐛 Known Issues
-Problemă	Soluție
-Diacritice PDF	Normalizare Unicode → ASCII
-Timeout AI	Folosire Groq pentru viteză mare
-Layer hărți	Fallback OpenStreetMap
-🚧 Roadmap
-
-📡 Integrare sateliți (Sentinel)
-
-🔥 Real-time disaster alerts
-
-🇬🇧 Limbi multiple (RO/EN)
-
-📱 safeRo Mobile App
-
-📈 Analiză istorică multi-anuală
-
-🤖 AI damage classification
-
-🌍 API public pentru instituții
-
-📄 License
-
-MIT License — vezi fișierul LICENSE.
-
-👥 Team
-
-Dezvoltat la hackathoane & proiecte de cercetare.
-Cu pasiune pentru tehnologie, AI și reziliență climatică.
-
-📬 Contact
-
-Pentru suport: deschide un Issue pe GitHub.
+This project is licensed under the MIT License. See the `LICENSE` file for more details.
