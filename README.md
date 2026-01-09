@@ -1,5 +1,7 @@
 # 🛡️ SAFE-RO - Disaster Management Platform
 
+https://romania-earth-monitor.lovable.app/
+
 SAFE-RO is a national-scale software solution that integrates Earth observation data with geospatial analytics to support both the public and authorities in disaster management. The system combines satellite monitoring, data processing, and alert delivery into one accessible platform.
 
 This repository contains the frontend application for the SAFE-RO platform, built with React, Vite, and Supabase.
